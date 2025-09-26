@@ -1,9 +1,12 @@
-import NextAuth from 'next-auth'
+// app/api/auth/[...nextauth]/route.ts
+
+import NextAuth, { NextAuthOptions } from 'next-auth' // Import NextAuthOptions
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { connectToDatabase } from '@/lib/mongodb'
 import User from '@/models/User'
 
-const handler = NextAuth({
+// Define and export the authOptions object
+export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
             name: 'credentials',
@@ -18,19 +21,14 @@ const handler = NextAuth({
 
                 try {
                     await connectToDatabase()
-
                     const user = await User.findOne({ email: credentials.email }).select('+password')
-
                     if (!user) {
                         return null
                     }
-
                     const isPasswordValid = await user.comparePassword(credentials.password)
-
                     if (!isPasswordValid) {
                         return null
                     }
-
                     return {
                         id: user._id.toString(),
                         email: user.email,
@@ -55,7 +53,7 @@ const handler = NextAuth({
             return token
         },
         async session({ session, token }) {
-            if (token) {
+            if (token && session.user) {
                 session.user.id = token.sub!
                 session.user.role = token.role as string
             }
@@ -65,6 +63,8 @@ const handler = NextAuth({
     pages: {
         signIn: '/auth/signin',
     },
-})
+};
 
-export { handler as GET, handler as POST }
+const handler = NextAuth(authOptions);
+
+export { handler as GET, handler as POST };

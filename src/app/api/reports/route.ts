@@ -1,9 +1,11 @@
 // app/api/reports/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { connectToDatabase } from '@/lib/mongodb'
 import Report from '@/models/Report'
 import { v2 as cloudinary } from 'cloudinary'
+import ReportVote from '@/models/ReportVote'
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -12,8 +14,10 @@ cloudinary.config({
 })
 
 export async function POST(request: NextRequest) {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
+
     if (!session?.user?.id) {
+        console.error("API Error: No session found.");
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -55,7 +59,14 @@ export async function POST(request: NextRequest) {
             address,
             images: imageUrl ? [imageUrl] : [],
             reportedBy: session.user.id,
-        })
+            score: 1,
+        });
+
+        await ReportVote.create({
+            report: newReport._id,
+            user: session.user.id,
+            value: 1,
+        });
 
         return NextResponse.json(newReport, { status: 201 })
     } catch (error) {

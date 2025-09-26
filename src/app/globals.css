@@ -14,7 +14,11 @@ html, body, #__next, :root {
 }
 
 body {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #ececec 0%, #e0e0e0 100%);
+  background-attachment: fixed; /* This makes it move with content */
+  background-repeat: no-repeat;
+  background-size: 100% 100vh; /* Full viewport height */
+  min-height: 100vh; /* Ensure body takes full height */
 }
 
 /* Utility: container width */
@@ -51,7 +55,7 @@ body {
 
 @layer components {
   .glass {
-    @apply rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-lg;
+    @apply rounded-xl border border-cyan-950/20 bg-white/70 backdrop-blur-lg;
   }
 }
 
@@ -66,3 +70,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 /* Smooth hover transitions globally */
 * { transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+
+@keyframes slideUp { from { transform: translateY(6px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+

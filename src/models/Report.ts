@@ -1,19 +1,16 @@
-// models/Report.ts
 import mongoose, { Schema, Document, Types } from 'mongoose'
 
 export interface IReport extends Document {
     title: string
     description: string
     category: 'Pothole' | 'Streetlight' | 'Sanitation' | 'Water Leakage' | 'Other'
-    location: {
-        type: 'Point'
-        coordinates: [number, number] // [longitude, latitude]
-    }
+    location: { type: 'Point'; coordinates: [number, number] }
     address: string
     images: string[]
     status: 'Submitted' | 'Acknowledged' | 'In Progress' | 'Resolved' | 'Rejected'
     reportedBy: Types.ObjectId
     createdAt: Date
+    score: number
 }
 
 const ReportSchema: Schema = new Schema({
@@ -25,15 +22,8 @@ const ReportSchema: Schema = new Schema({
         required: true,
     },
     location: {
-        type: {
-            type: String,
-            enum: ['Point'],
-            required: true,
-        },
-        coordinates: {
-            type: [Number], // [longitude, latitude]
-            required: true,
-        },
+        type: { type: String, enum: ['Point'], required: true },
+        coordinates: { type: [Number], required: true },
     },
     address: { type: String, required: true },
     images: [{ type: String }],
@@ -44,6 +34,7 @@ const ReportSchema: Schema = new Schema({
     },
     reportedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     createdAt: { type: Date, default: Date.now },
+    score: { type: Number, default: 0 },
 })
 
 ReportSchema.index({ location: '2dsphere' })
