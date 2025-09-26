@@ -4,7 +4,8 @@
 import { useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { PhotoIcon, MapPinIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { useDropzone } from 'react-dropzone'
+import { PhotoIcon, MapPinIcon, ArrowPathIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import CategorySelect from '@/components/ui/CategorySelect'
 
 // Dynamic import for the map
@@ -23,6 +24,35 @@ export default function NewReportPage() {
     const [category, setCategory] = useState(categories[0])
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const addressRef = useRef<HTMLInputElement>(null)
+
+    // State for multiple files and their previews
+    const [files, setFiles] = useState<File[]>([]);
+    const [previews, setPreviews] = useState<string[]>([]);
+
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        // Limit to 5 images total
+        const newFiles = [...files, ...acceptedFiles].slice(0, 5);
+        setFiles(newFiles);
+
+        // Clean up old previews before creating new ones to prevent memory leaks
+        previews.forEach(url => URL.revokeObjectURL(url));
+        const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+        setPreviews(newPreviews);
+    }, [files, previews]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: { 'image/*': ['.jpeg', '.png', '.jpg', '.gif'] },
+        maxFiles: 5,
+    });
+
+    const removeFile = (indexToRemove: number) => {
+        // Revoke the object URL to free up memory
+        URL.revokeObjectURL(previews[indexToRemove]);
+
+        setFiles(currentFiles => currentFiles.filter((_, index) => index !== indexToRemove));
+        setPreviews(currentPreviews => currentPreviews.filter((_, index) => index !== indexToRemove));
+    };
 
     // This callback now only updates the *hidden* location state
     const handleLocationChange = useCallback((lat: number, lon: number, address: string) => {
@@ -57,6 +87,14 @@ export default function NewReportPage() {
         const formData = new FormData(e.currentTarget)
         formData.append('latitude', location.lat.toString())
         formData.append('longitude', location.lon.toString())
+
+        // Append all selected files to the form data under the same key 'images'
+        files.forEach(file => {
+            formData.append('images', file);
+        });
+
+        // Ensure the old single 'image' field is not present
+        formData.delete('image');
 
         try {
             const response = await fetch('/api/reports', { method: 'POST', body: formData })
@@ -96,17 +134,39 @@ export default function NewReportPage() {
 
                 {/* Photo section */}
                 <div className="glass relative z-0 p-6">
-                    <h3 className="text-[0.95rem] font-semibold text-slate-800">Photo</h3>
-                    <div className="mt-3 flex justify-center rounded-xl border-dashed border-slate-400 bg-white px-6 py-10">
+                    <h3 className="text-[0.95rem] font-semibold text-slate-800">Photos (up to 5)</h3>
+
+                    <div
+                        {...getRootProps()}
+                        className={`mt-3 flex justify-center rounded-xl border-2 border-dashed  px-6 py-10 transition-colors ${isDragActive ? 'border-blue-500 bg-blue-50/50' : 'border-slate-400 bg-white hover:border-slate-500'}`}
+                    >
+                        <input {...getInputProps()} />
                         <div className="text-center">
-                            {imagePreview ? (<img src={imagePreview} alt="Preview" className="mx-auto h-40 w-auto rounded-lg object-cover ring-1 ring-slate-300" />) : (<PhotoIcon className="mx-auto h-12 w-12 text-slate-400" />)}
-                            <div className="mt-4 text-sm text-slate-700">
-                                <label className="cursor-pointer font-semibold text-blue-700 hover:text-blue-600"><span>Upload a file</span><input id="image" name="image" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} /></label>
-                                <span className="px-1 text-slate-500">or drag and drop</span>
-                                <div className="text-xs text-slate-500">PNG, JPG up to 10MB</div>
-                            </div>
+                            <PhotoIcon className="mx-auto h-12 w-12 text-slate-400" />
+                            <p className="mt-2 text-sm text-slate-600">
+                                {isDragActive ? 'Drop the files here...' : 'Drag & drop photos here, or click to select'}
+                            </p>
+                            <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB each</p>
                         </div>
                     </div>
+
+                    {previews.length > 0 && (
+                        <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
+                            {previews.map((preview, index) => (
+                                <div key={preview} className="relative group">
+                                    <img src={preview} alt={`Preview ${index + 1}`} className="aspect-square w-full rounded-md object-cover ring-1 ring-slate-200" />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(index)}
+                                        className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-slate-800 text-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                                        aria-label="Remove image"
+                                    >
+                                        <XCircleIcon className="h-5 w-5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Location section */}
